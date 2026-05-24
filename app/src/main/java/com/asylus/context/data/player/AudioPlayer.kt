@@ -6,4 +6,6 @@ interface AudioPlayer {
     fun play(file: File, onComplete: () -> Unit)
     fun stop()
     fun isPlaying(): Boolean
+    fun pause()
+    fun resume()
 }

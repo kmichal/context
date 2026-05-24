@@ -53,4 +53,22 @@ class AndroidAudioPlayer(private val context: Context) : AudioPlayer {
             false
         }
     }
+
+    override fun pause() {
+        try {
+            if (mediaPlayer?.isPlaying == true) {
+                mediaPlayer?.pause()
+            }
+        } catch (e: Exception) {
+            Log.e("AndroidAudioPlayer", "Failed to pause MediaPlayer", e)
+        }
+    }
+
+    override fun resume() {
+        try {
+            mediaPlayer?.start()
+        } catch (e: Exception) {
+            Log.e("AndroidAudioPlayer", "Failed to resume MediaPlayer", e)
+        }
+    }
 }

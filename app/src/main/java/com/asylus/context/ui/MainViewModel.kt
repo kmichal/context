@@ -44,6 +44,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentlyPlaying = MutableStateFlow<Recording?>(null)
     val currentlyPlaying: StateFlow<Recording?> = _currentlyPlaying.asStateFlow()
 
+    private val _selectedRecordingForPlayback = MutableStateFlow<Recording?>(null)
+    val selectedRecordingForPlayback: StateFlow<Recording?> = _selectedRecordingForPlayback.asStateFlow()
+
+    private val _isPlaybackPlaying = MutableStateFlow(false)
+    val isPlaybackPlaying: StateFlow<Boolean> = _isPlaybackPlaying.asStateFlow()
+
     init {
         loadRecordings()
     }
@@ -130,31 +136,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _amplitudeScale.value = 1.0f
     }
 
-    fun playRecording(recording: Recording) {
-        if (_currentlyPlaying.value == recording) {
-            stopPlayback()
-        } else {
-            // Stop any ongoing playback
-            stopPlayback()
+    fun selectRecording(recording: Recording) {
+        _selectedRecordingForPlayback.value = recording
+        startPlayback(recording)
+    }
 
-            _currentlyPlaying.value = recording
-            player.play(recording.file) {
-                // On complete callback
-                _currentlyPlaying.value = null
+    private fun startPlayback(recording: Recording) {
+        stopPlayback()
+        _currentlyPlaying.value = recording
+        _isPlaybackPlaying.value = true
+        player.play(recording.file) {
+            _isPlaybackPlaying.value = false
+            _currentlyPlaying.value = null
+        }
+    }
+
+    fun togglePlayPause() {
+        val recording = _selectedRecordingForPlayback.value ?: return
+        if (_currentlyPlaying.value == null) {
+            startPlayback(recording)
+        } else {
+            if (_isPlaybackPlaying.value) {
+                player.pause()
+                _isPlaybackPlaying.value = false
+            } else {
+                player.resume()
+                _isPlaybackPlaying.value = true
             }
         }
+    }
+
+    fun closePlayer() {
+        stopPlayback()
+        _selectedRecordingForPlayback.value = null
     }
 
     fun stopPlayback() {
         if (_currentlyPlaying.value != null) {
             player.stop()
             _currentlyPlaying.value = null
+            _isPlaybackPlaying.value = false
         }
     }
 
     fun deleteRecording(recording: Recording) {
         if (_currentlyPlaying.value == recording) {
             stopPlayback()
+        }
+        if (_selectedRecordingForPlayback.value == recording) {
+            _selectedRecordingForPlayback.value = null
         }
         val deleted = repository.deleteRecording(recording)
         if (deleted) {
