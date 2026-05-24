@@ -66,7 +66,6 @@ fun PlayerScreen(
                         .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Back button to close player screen
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -74,53 +73,12 @@ fun PlayerScreen(
                             tint = TextLight
                         )
                     }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Play/Pause Button
-                    IconButton(
-                        onClick = onPlayPauseClick,
-                        modifier = Modifier
-                            .size(44.dp)
-                            .background(if (isPlaying) GlowRed else CardBorder, shape = CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) stringResource(R.string.pause_description) else stringResource(R.string.play_description),
-                            tint = if (isPlaying) Color.White else TextLight,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    // Recording Name (taking remaining space)
-                    Text(
-                        text = recording.displayName,
-                        color = TextLight,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Delete Button
-                    IconButton(onClick = onDeleteClick) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.delete_recording_description),
-                            tint = GlowRed
-                        )
-                    }
                 }
             }
         },
         containerColor = DeepBg
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -128,34 +86,86 @@ fun PlayerScreen(
                     brush = Brush.verticalGradient(
                         colors = listOf(SurfaceBg, DeepBg)
                     )
-                ),
-            contentAlignment = Alignment.Center
+                )
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+            // Player controls row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.AudioFile,
-                    contentDescription = null,
-                    tint = CardBorder,
-                    modifier = Modifier.size(96.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(
+                    onClick = onPlayPauseClick,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(if (isPlaying) GlowRed else CardBorder, shape = CircleShape)
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) stringResource(R.string.pause_description) else stringResource(R.string.play_description),
+                        tint = if (isPlaying) Color.White else TextLight,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
                 Text(
-                    text = if (isPlaying) stringResource(R.string.playing_status) else stringResource(R.string.paused_status),
-                    color = if (isPlaying) GlowRed else TextMuted,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = recording.durationFormatted,
-                    color = TextMuted,
+                    text = recording.displayName,
+                    color = TextLight,
                     fontSize = 16.sp,
-                    fontFamily = FontFamily.Monospace
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(onClick = onDeleteClick) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = stringResource(R.string.delete_recording_description),
+                        tint = GlowRed
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AudioFile,
+                        contentDescription = null,
+                        tint = CardBorder,
+                        modifier = Modifier.size(96.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = if (isPlaying) stringResource(R.string.playing_status) else stringResource(R.string.paused_status),
+                        color = if (isPlaying) GlowRed else TextMuted,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = recording.durationFormatted,
+                        color = TextMuted,
+                        fontSize = 16.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
         }
     }
