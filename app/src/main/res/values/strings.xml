@@ -1,3 +1,29 @@
 <resources>
     <string name="app_name">Context</string>
+
+    <!-- Recording Home Screen -->
+    <string name="mic_permission_required">Microphone permission is required to record audio</string>
+    <string name="nav_drawer_description">Open Navigation Drawer</string>
+    <string name="start_recording_description">Start Recording</string>
+    <string name="stop_recording_description">Stop Recording</string>
+    <string name="recording_in_progress">RECORDING IN PROGRESS</string>
+    <string name="tap_to_record">Tap to Record</string>
+
+    <!-- Player Screen -->
+    <string name="back_description">Back</string>
+    <string name="play_description">Play</string>
+    <string name="pause_description">Pause</string>
+    <string name="delete_recording_description">Delete Recording</string>
+    <string name="playing_status">PLAYING</string>
+    <string name="paused_status">PAUSED</string>
+
+    <!-- Drawer -->
+    <string name="close_drawer_description">Close Drawer</string>
+    <string name="recordings_section">Recordings</string>
+    <string name="no_recordings_message">No recordings found.\nTap the microphone button to start recording.</string>
+
+    <!-- Formats & Defaults -->
+    <string name="duration_format" formatted="false">%02d:%02d</string>
+    <string name="recording_name_format">Recording %s</string>
+    <string name="default_duration">00:00</string>
 </resources>

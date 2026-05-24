@@ -3,6 +3,7 @@ package com.asylus.context.data.repository
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.util.Log
+import com.asylus.context.R
 import com.asylus.context.data.model.Recording
 import java.io.File
 import java.text.SimpleDateFormat
@@ -32,7 +33,7 @@ class RecordingRepository(private val context: Context) {
         return files.sortedByDescending { it.lastModified() }.map { file ->
             val timestamp = file.lastModified()
             val formattedDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(timestamp))
-            val displayName = "Recording $formattedDate"
+            val displayName = context.getString(R.string.recording_name_format, formattedDate)
 
             Recording(
                 file = file,
@@ -64,7 +65,7 @@ class RecordingRepository(private val context: Context) {
             val durationMs = durationStr?.toLong() ?: 0L
             formatDuration(durationMs)
         } catch (e: Exception) {
-            "00:00"
+            context.getString(R.string.default_duration)
         } finally {
             try {
                 retriever.release()
@@ -78,6 +79,6 @@ class RecordingRepository(private val context: Context) {
         val totalSeconds = durationMs / 1000
         val minutes = totalSeconds / 60
         val seconds = totalSeconds % 60
-        return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+        return String.format(Locale.getDefault(), context.getString(R.string.duration_format), minutes, seconds)
     }
 }

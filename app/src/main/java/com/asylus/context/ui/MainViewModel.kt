@@ -3,6 +3,7 @@ package com.asylus.context.ui
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import com.asylus.context.R
 import androidx.lifecycle.viewModelScope
 import com.asylus.context.data.model.Recording
 import com.asylus.context.data.player.AndroidAudioPlayer
@@ -20,9 +21,11 @@ import java.util.Locale
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val recorder = AndroidAudioRecorder(application)
-    private val player = AndroidAudioPlayer(application)
-    private val repository = RecordingRepository(application)
+    private val appContext = application
+
+    private val recorder = AndroidAudioRecorder(appContext)
+    private val player = AndroidAudioPlayer(appContext)
+    private val repository = RecordingRepository(appContext)
 
     private var activeFile: File? = null
     private var timerJob: Job? = null
@@ -32,7 +35,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
-    private val _elapsedTime = MutableStateFlow("00:00")
+    private val _elapsedTime = MutableStateFlow(appContext.getString(R.string.default_duration))
     val elapsedTime: StateFlow<String> = _elapsedTime.asStateFlow()
 
     private val _amplitudeScale = MutableStateFlow(1.0f)
@@ -80,7 +83,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         activeFile = file
         recorder.start(file)
         _isRecording.value = true
-        _elapsedTime.value = "00:00"
+        _elapsedTime.value = appContext.getString(R.string.default_duration)
 
         startTimer()
         startAmplitudePolling()
@@ -107,7 +110,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val seconds = elapsedMs / 1000
                 val minutes = seconds / 60
                 val remainingSeconds = seconds % 60
-                _elapsedTime.value = String.format(Locale.getDefault(), "%02d:%02d", minutes, remainingSeconds)
+                _elapsedTime.value = String.format(Locale.getDefault(), appContext.getString(R.string.duration_format), minutes, remainingSeconds)
                 delay(200) // Update 5 times a second for snappy response
             }
         }

@@ -30,11 +30,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.asylus.context.R
 import com.asylus.context.data.model.Recording
 import com.asylus.context.ui.theme.CardBorder
 import com.asylus.context.ui.theme.DeepBg
@@ -68,7 +70,7 @@ fun PlayerScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back_description),
                             tint = TextLight
                         )
                     }
@@ -84,7 +86,7 @@ fun PlayerScreen(
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            contentDescription = if (isPlaying) stringResource(R.string.pause_description) else stringResource(R.string.play_description),
                             tint = if (isPlaying) Color.White else TextLight,
                             modifier = Modifier.size(24.dp)
                         )
@@ -109,7 +111,7 @@ fun PlayerScreen(
                     IconButton(onClick = onDeleteClick) {
                         Icon(
                             imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete Recording",
+                            contentDescription = stringResource(R.string.delete_recording_description),
                             tint = GlowRed
                         )
                     }
@@ -141,7 +143,7 @@ fun PlayerScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = if (isPlaying) "PLAYING" else "PAUSED",
+                    text = if (isPlaying) stringResource(R.string.playing_status) else stringResource(R.string.paused_status),
                     color = if (isPlaying) GlowRed else TextMuted,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,

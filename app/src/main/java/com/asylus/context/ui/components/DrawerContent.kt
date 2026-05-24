@@ -62,7 +62,7 @@ fun DrawerContent(
             IconButton(onClick = onCloseClick) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Close Drawer",
+                    contentDescription = stringResource(R.string.close_drawer_description),
                     tint = TextMuted
                 )
             }
@@ -72,7 +72,7 @@ fun DrawerContent(
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
-            text = "Recordings",
+            text = stringResource(R.string.recordings_section),
             color = TextLight,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
@@ -87,7 +87,7 @@ fun DrawerContent(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No recordings found.\nTap the microphone button to start recording.",
+                    text = stringResource(R.string.no_recordings_message),
                     color = TextMuted,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,

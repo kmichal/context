@@ -5,7 +5,6 @@ import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -55,12 +54,14 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.asylus.context.R
 import com.asylus.context.ui.MainViewModel
 import com.asylus.context.ui.components.DrawerContent
 import com.asylus.context.ui.theme.DeepBg
@@ -83,6 +84,7 @@ fun RecordingHomeScreen(viewModel: MainViewModel) {
     val elapsedTime by viewModel.elapsedTime.collectAsState()
     val amplitudeScale by viewModel.amplitudeScale.collectAsState()
     val recordings by viewModel.recordings.collectAsState()
+    val permissionRequiredMsg = stringResource(R.string.mic_permission_required)
 
     // Request Permission Launcher
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -91,7 +93,7 @@ fun RecordingHomeScreen(viewModel: MainViewModel) {
             if (isGranted) {
                 viewModel.toggleRecording()
             } else {
-                Toast.makeText(context, "Microphone permission is required to record audio", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, permissionRequiredMsg, Toast.LENGTH_LONG).show()
             }
         }
     )
@@ -123,7 +125,7 @@ fun RecordingHomeScreen(viewModel: MainViewModel) {
                 CenterAlignedTopAppBar(
                     title = {
                         Text(
-                            text = "Context",
+                            text = stringResource(R.string.app_name),
                             color = TextLight,
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
@@ -135,7 +137,7 @@ fun RecordingHomeScreen(viewModel: MainViewModel) {
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Menu,
-                                contentDescription = "Open Navigation Drawer",
+                                contentDescription = stringResource(R.string.nav_drawer_description),
                                 tint = TextLight
                             )
                         }
@@ -276,7 +278,7 @@ fun RecordingHomeScreen(viewModel: MainViewModel) {
                         ) {
                             Icon(
                                 imageVector = if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
-                                contentDescription = if (isRecording) "Stop Recording" else "Start Recording",
+                                contentDescription = if (isRecording) stringResource(R.string.stop_recording_description) else stringResource(R.string.start_recording_description),
                                 tint = Color.White,
                                 modifier = Modifier.size(36.dp)
                             )
@@ -297,7 +299,7 @@ fun RecordingHomeScreen(viewModel: MainViewModel) {
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "RECORDING IN PROGRESS",
+                            text = stringResource(R.string.recording_in_progress),
                             color = TextMuted,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -307,7 +309,7 @@ fun RecordingHomeScreen(viewModel: MainViewModel) {
                     } else {
                         // Provide a small hint helper label when not recording
                         Text(
-                            text = "Tap to Record",
+                            text = stringResource(R.string.tap_to_record),
                             color = TextMuted,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
