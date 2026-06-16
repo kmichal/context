@@ -1,4 +1,5 @@
 # Context
+(WIP)
 
 A modern Android application for recording, managing, and transcribing audio using AI-powered speech recognition. Context uses the xai API to provide accurate and efficient audio transcription with a clean, intuitive Material 3 interface built with Jetpack Compose.
 
@@ -10,6 +11,7 @@ A modern Android application for recording, managing, and transcribing audio usi
 - ⚙️ **Settings Management** - Configure your Xai API key and app preferences
 - 🎨 **Modern UI** - Built with Jetpack Compose and Material 3 design
 - 📱 **Responsive Design** - Adapts seamlessly to different screen sizes
+- **Summary** - Summarizes the meeting and provides action items (In Development)
 
 ## Requirements
 
