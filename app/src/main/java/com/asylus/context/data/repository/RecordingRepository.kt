@@ -29,7 +29,6 @@ class RecordingRepository(private val context: Context) {
             file.isFile && file.name.startsWith("recording_") && file.name.endsWith(".m4a")
         } ?: emptyArray()
 
-        // Sort by last modified descending (newest first)
         return files.sortedByDescending { it.lastModified() }.map { file ->
             val timestamp = file.lastModified()
             val formattedDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(timestamp))
@@ -39,13 +38,36 @@ class RecordingRepository(private val context: Context) {
                 file = file,
                 displayName = displayName,
                 durationFormatted = getDurationFormatted(file),
-                timestamp = timestamp
+                timestamp = timestamp,
+                transcript = getTranscript(file)
             )
+        }
+    }
+
+    fun saveTranscript(audioFile: File, transcript: String) {
+        try {
+            val transcriptFile = File(audioFile.absolutePath.replace(".m4a", ".txt"))
+            transcriptFile.writeText(transcript)
+        } catch (e: Exception) {
+            Log.e("RecordingRepository", "Failed to save transcript", e)
+        }
+    }
+
+    private fun getTranscript(audioFile: File): String? {
+        val transcriptFile = File(audioFile.absolutePath.replace(".m4a", ".txt"))
+        return if (transcriptFile.exists()) {
+            transcriptFile.readText()
+        } else {
+            null
         }
     }
 
     fun deleteRecording(recording: Recording): Boolean {
         return try {
+            val transcriptFile = File(recording.file.absolutePath.replace(".m4a", ".txt"))
+            if (transcriptFile.exists()) {
+                transcriptFile.delete()
+            }
             if (recording.file.exists()) {
                 recording.file.delete()
             } else {

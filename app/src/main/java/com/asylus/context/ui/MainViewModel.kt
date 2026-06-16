@@ -1,14 +1,22 @@
 package com.asylus.context.ui
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
+import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.asylus.context.R
 import androidx.lifecycle.viewModelScope
 import com.asylus.context.data.model.Recording
 import com.asylus.context.data.player.AndroidAudioPlayer
 import com.asylus.context.data.recorder.AndroidAudioRecorder
 import com.asylus.context.data.repository.RecordingRepository
+import com.asylus.context.data.transcription.AndroidAudioTranscriber
+import com.asylus.context.data.transcription.AudioTranscriber
+import com.asylus.context.data.transcription.XaiAudioTranscriber
+import com.asylus.context.ui.navigation.Screen
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,10 +30,28 @@ import java.util.Locale
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val appContext = application
+    
+    private val masterKey = MasterKey.Builder(appContext)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
+
+    private val prefs = EncryptedSharedPreferences.create(
+        appContext,
+        "context_secure_prefs",
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
 
     private val recorder = AndroidAudioRecorder(appContext)
     private val player = AndroidAudioPlayer(appContext)
     private val repository = RecordingRepository(appContext)
+    
+    // Transcribers
+    private val xaiTranscriber = XaiAudioTranscriber { prefs.getString("xai_api_key", "")?.trim() ?: "" }
+    private val androidTranscriber = AndroidAudioTranscriber(appContext)
+    
+    private var activeTranscriber: AudioTranscriber = xaiTranscriber
 
     private var activeFile: File? = null
     private var timerJob: Job? = null
@@ -34,6 +60,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
+
+    private val _isTranscribing = MutableStateFlow(false)
+    val isTranscribing: StateFlow<Boolean> = _isTranscribing.asStateFlow()
 
     private val _elapsedTime = MutableStateFlow(appContext.getString(R.string.default_duration))
     val elapsedTime: StateFlow<String> = _elapsedTime.asStateFlow()
@@ -53,9 +82,70 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isPlaybackPlaying = MutableStateFlow(false)
     val isPlaybackPlaying: StateFlow<Boolean> = _isPlaybackPlaying.asStateFlow()
 
+    private val _transcript = MutableStateFlow("")
+    val transcript: StateFlow<String> = _transcript.asStateFlow()
+
+    private val _currentScreen = MutableStateFlow<Screen>(Screen.Home)
+    val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
+
     init {
         loadRecordings()
+        updateEngine()
+        
+        viewModelScope.launch {
+            launch {
+                xaiTranscriber.transcript.collect { if (activeTranscriber == xaiTranscriber) _transcript.value = it }
+            }
+            launch {
+                androidTranscriber.transcript.collect { if (activeTranscriber == androidTranscriber) _transcript.value = it }
+            }
+            launch {
+                xaiTranscriber.isTranscribing.collect { if (activeTranscriber == xaiTranscriber) handleTranscriptionStateChange(it) }
+            }
+            launch {
+                androidTranscriber.isTranscribing.collect { if (activeTranscriber == androidTranscriber) handleTranscriptionStateChange(it) }
+            }
+        }
     }
+
+    private fun handleTranscriptionStateChange(isCurrentlyTranscribing: Boolean) {
+        val wasTranscribing = _isTranscribing.value
+        _isTranscribing.value = isCurrentlyTranscribing
+
+        // If we just finished transcribing (transition from true to false), save the result
+        if (wasTranscribing && !isCurrentlyTranscribing) {
+            val finalTranscript = _transcript.value
+            if (finalTranscript.isNotEmpty() && !finalTranscript.startsWith("API Error") && !finalTranscript.startsWith("Transcription failed")) {
+                activeFile?.let { file ->
+                    repository.saveTranscript(file, finalTranscript)
+                    loadRecordings()
+                    
+                    // Update selected recording if it's the one we just transcribed
+                    if (_selectedRecordingForPlayback.value?.file == file) {
+                        _selectedRecordingForPlayback.value = _selectedRecordingForPlayback.value?.copy(transcript = finalTranscript)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun updateEngine() {
+        val engine = prefs.getString("selected_engine", "xAI (Grok)")
+        activeTranscriber = if (engine == "xAI (Grok)") xaiTranscriber else androidTranscriber
+    }
+
+    fun setXaiApiKey(key: String) {
+        prefs.edit { putString("xai_api_key", key) }
+    }
+
+    fun getXaiApiKey(): String = prefs.getString("xai_api_key", "") ?: ""
+
+    fun setSelectedEngine(engine: String) {
+        prefs.edit { putString("selected_engine", engine) }
+        updateEngine()
+    }
+
+    fun getSelectedEngine(): String = prefs.getString("selected_engine", "xAI (Grok)") ?: "xAI (Grok)"
 
     fun loadRecordings() {
         viewModelScope.launch {
@@ -76,30 +166,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun startRecording() {
-        // Stop any active playback when starting a recording
         stopPlayback()
-
         val file = repository.createRecordingFile()
         activeFile = file
-        recorder.start(file)
+        
+        activeTranscriber.clearTranscript()
+        if (activeTranscriber == androidTranscriber) {
+            activeTranscriber.startLiveTranscription()
+        }
+
+        viewModelScope.launch {
+            delay(300) 
+            recorder.start(file)
+        }
+
         _isRecording.value = true
         _elapsedTime.value = appContext.getString(R.string.default_duration)
-
         startTimer()
         startAmplitudePolling()
     }
 
     private fun stopRecording() {
         recorder.stop()
+        if (activeTranscriber == androidTranscriber) {
+            activeTranscriber.stopLiveTranscription()
+        } else {
+            activeFile?.let { activeTranscriber.transcribeFile(it) }
+        }
+        
         _isRecording.value = false
         _amplitudeScale.value = 1.0f
-
         stopTimer()
         stopAmplitudePolling()
-
-        // Reload recordings to include the newly saved recording
         loadRecordings()
-        activeFile = null
+    }
+
+    fun transcribeRecording(recording: Recording) {
+        activeFile = recording.file
+        activeTranscriber.clearTranscript()
+        activeTranscriber.transcribeFile(recording.file)
     }
 
     private fun startTimer() {
@@ -111,7 +216,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val minutes = seconds / 60
                 val remainingSeconds = seconds % 60
                 _elapsedTime.value = String.format(Locale.getDefault(), appContext.getString(R.string.duration_format), minutes, remainingSeconds)
-                delay(200) // Update 5 times a second for snappy response
+                delay(200)
             }
         }
     }
@@ -125,10 +230,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         amplitudeJob = viewModelScope.launch {
             while (isActive) {
                 val maxAmp = recorder.getMaxAmplitude()
-                // Map maxAmp (0 to 32767) to a scale factor (1.0f to 1.5f)
                 val ratio = (maxAmp.toFloat() / 32767f).coerceIn(0f, 1f)
                 _amplitudeScale.value = 1.0f + ratio * 0.5f
-                delay(70) // Poll ~14 times per second for smooth wave responsiveness
+                delay(70)
             }
         }
     }
@@ -141,7 +245,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectRecording(recording: Recording) {
         _selectedRecordingForPlayback.value = recording
-        startPlayback(recording)
+        _transcript.value = recording.transcript ?: ""
     }
 
     private fun startPlayback(recording: Recording) {
@@ -172,6 +276,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun closePlayer() {
         stopPlayback()
         _selectedRecordingForPlayback.value = null
+        _transcript.value = ""
     }
 
     fun stopPlayback() {
@@ -193,6 +298,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (deleted) {
             loadRecordings()
         }
+    }
+
+    fun navigateTo(screen: Screen) {
+        _currentScreen.value = screen
     }
 
     override fun onCleared() {

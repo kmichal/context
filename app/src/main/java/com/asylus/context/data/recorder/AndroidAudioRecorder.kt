@@ -13,7 +13,8 @@ class AndroidAudioRecorder(private val context: Context) : AudioRecorder {
         if (mediaRecorder != null) return
 
         mediaRecorder = createMediaRecorder().apply {
-            setAudioSource(MediaRecorder.AudioSource.MIC)
+            // Using VOICE_COMMUNICATION allows sharing the mic on many devices
+            setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             setOutputFile(outputFile.absolutePath)

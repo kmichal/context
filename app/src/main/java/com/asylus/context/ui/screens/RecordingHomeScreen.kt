@@ -5,48 +5,19 @@ import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.StartOffset
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,13 +35,8 @@ import androidx.core.content.ContextCompat
 import com.asylus.context.R
 import com.asylus.context.ui.MainViewModel
 import com.asylus.context.ui.components.DrawerContent
-import com.asylus.context.ui.theme.DeepBg
-import com.asylus.context.ui.theme.GlowRed
-import com.asylus.context.ui.theme.GlowRedDim
-import com.asylus.context.ui.theme.GlowRedRipple
-import com.asylus.context.ui.theme.SurfaceBg
-import com.asylus.context.ui.theme.TextLight
-import com.asylus.context.ui.theme.TextMuted
+import com.asylus.context.ui.navigation.Screen
+import com.asylus.context.ui.theme.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,22 +47,23 @@ fun RecordingHomeScreen(viewModel: MainViewModel) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     val isRecording by viewModel.isRecording.collectAsState()
+    val isTranscribing by viewModel.isTranscribing.collectAsState()
     val elapsedTime by viewModel.elapsedTime.collectAsState()
     val amplitudeScale by viewModel.amplitudeScale.collectAsState()
+    val transcript by viewModel.transcript.collectAsState()
     val recordings by viewModel.recordings.collectAsState()
-    val permissionRequiredMsg = stringResource(R.string.mic_permission_required)
-
-    // Request Permission Launcher
+    
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
-            if (isGranted) {
-                viewModel.toggleRecording()
-            } else {
-                Toast.makeText(context, permissionRequiredMsg, Toast.LENGTH_LONG).show()
-            }
+            if (isGranted) viewModel.toggleRecording()
+            else Toast.makeText(context, "Permission Required", Toast.LENGTH_SHORT).show()
         }
     )
+
+    // UI State: Large button in center if recording OR idle. 
+    // Small button at top if transcribing OR transcript exists and not recording.
+    val showSmallButton = isTranscribing || (transcript.isNotEmpty() && !isRecording)
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -113,9 +80,7 @@ fun RecordingHomeScreen(viewModel: MainViewModel) {
                         viewModel.selectRecording(recording)
                     },
                     onDeleteClick = { viewModel.deleteRecording(it) },
-                    onCloseClick = {
-                        scope.launch { drawerState.close() }
-                    }
+                    onCloseClick = { scope.launch { drawerState.close() } }
                 )
             }
         }
@@ -132,19 +97,16 @@ fun RecordingHomeScreen(viewModel: MainViewModel) {
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = {
-                            scope.launch { drawerState.open() }
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = stringResource(R.string.nav_drawer_description),
-                                tint = TextLight
-                            )
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = TextLight)
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = SurfaceBg
-                    )
+                    actions = {
+                        IconButton(onClick = { viewModel.navigateTo(Screen.Settings) }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = TextLight)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceBg)
                 )
             },
             containerColor = DeepBg
@@ -153,168 +115,135 @@ fun RecordingHomeScreen(viewModel: MainViewModel) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(SurfaceBg, DeepBg)
-                        )
-                    ),
-                contentAlignment = Alignment.Center
+                    .background(Brush.verticalGradient(listOf(SurfaceBg, DeepBg)))
             ) {
+                // Transcript and Status Area
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp)
+                        .padding(top = if (showSmallButton) 100.dp else 24.dp)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.Start
                 ) {
-                    // Recording visualizer / Pulsating record button
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(280.dp)
-                    ) {
-                        if (isRecording) {
-                            // Semi-transparent background wave ripples
-                            val infiniteTransition = rememberInfiniteTransition(label = "pulse_ripple")
-                            val rippleScale1 by infiniteTransition.animateFloat(
-                                initialValue = 1.0f,
-                                targetValue = 1.8f,
-                                animationSpec = infiniteRepeatable(
-                                    animation = tween(1200, easing = LinearEasing),
-                                    repeatMode = RepeatMode.Restart
-                                ),
-                                label = "ripple1"
+                    if (isTranscribing) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = GlowRed,
+                                strokeWidth = 2.dp
                             )
-                            val rippleAlpha1 by infiniteTransition.animateFloat(
-                                initialValue = 0.6f,
-                                targetValue = 0.0f,
-                                animationSpec = infiniteRepeatable(
-                                    animation = tween(1200, easing = LinearEasing),
-                                    repeatMode = RepeatMode.Restart
-                                ),
-                                label = "alpha1"
-                            )
-
-                            val rippleScale2 by infiniteTransition.animateFloat(
-                                initialValue = 1.0f,
-                                targetValue = 1.8f,
-                                animationSpec = infiniteRepeatable(
-                                    animation = tween(1200, easing = LinearEasing),
-                                    repeatMode = RepeatMode.Restart,
-                                    initialStartOffset = StartOffset(600)
-                                ),
-                                label = "ripple2"
-                            )
-                            val rippleAlpha2 by infiniteTransition.animateFloat(
-                                initialValue = 0.6f,
-                                targetValue = 0.0f,
-                                animationSpec = infiniteRepeatable(
-                                    animation = tween(1200, easing = LinearEasing),
-                                    repeatMode = RepeatMode.Restart,
-                                    initialStartOffset = StartOffset(600)
-                                ),
-                                label = "alpha2"
-                            )
-
-                            // Render ripple circles
-                            Box(
-                                modifier = Modifier
-                                    .size(100.dp)
-                                    .scale(rippleScale1)
-                                    .background(GlowRedDim.copy(alpha = rippleAlpha1), shape = CircleShape)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .size(100.dp)
-                                    .scale(rippleScale2)
-                                    .background(GlowRedDim.copy(alpha = rippleAlpha2), shape = CircleShape)
-                            )
-
-                            // Live amplitude reactive circle
-                            val animatedAmplitude by animateFloatAsState(
-                                targetValue = amplitudeScale,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessLow
-                                ),
-                                label = "reactiveScale"
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .size(110.dp)
-                                    .scale(animatedAmplitude)
-                                    .background(GlowRedRipple, shape = CircleShape)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "TRANSCRIBING...",
+                                color = GlowRed,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 2.sp
                             )
                         }
-
-                        // Main Red Recording Button
-                        val buttonScale by animateFloatAsState(
-                            targetValue = if (isRecording) 0.9f else 1.0f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioLowBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            ),
-                            label = "buttonPress"
+                    } else if (transcript.isNotEmpty()) {
+                        Text(
+                            text = "TRANSCRIPT",
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 2.sp
                         )
-                        Box(
-                            modifier = Modifier
-                                .size(100.dp)
-                                .scale(buttonScale)
-                                .clip(CircleShape)
-                                .background(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(Color(0xFFFF5E62), GlowRed)
-                                    )
-                                )
-                                .clickable {
-                                    val hasPermission = ContextCompat.checkSelfPermission(
-                                        context,
-                                        Manifest.permission.RECORD_AUDIO
-                                    ) == PackageManager.PERMISSION_GRANTED
-
-                                    if (hasPermission) {
-                                        viewModel.toggleRecording()
-                                    } else {
-                                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
-                                contentDescription = if (isRecording) stringResource(R.string.stop_recording_description) else stringResource(R.string.start_recording_description),
-                                tint = Color.White,
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Chronometer below button
-                    if (isRecording) {
+                    if (transcript.isNotEmpty() || isTranscribing) {
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = elapsedTime,
-                            color = GlowRed,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.recording_in_progress),
-                            color = TextMuted,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 2.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    } else {
-                        // Provide a small hint helper label when not recording
-                        Text(
-                            text = stringResource(R.string.tap_to_record),
-                            color = TextMuted,
-                            fontSize = 16.sp,
+                            text = transcript,
+                            color = TextLight,
+                            fontSize = 19.sp,
                             fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center
+                            lineHeight = 28.sp
                         )
+                    }
+                }
+
+                // Recording Button Animation
+                val buttonSize by animateDpAsState(
+                    targetValue = if (showSmallButton) 64.dp else 120.dp,
+                    label = "buttonSize",
+                    animationSpec = spring(stiffness = Spring.StiffnessLow)
+                )
+
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = if (showSmallButton) Alignment.TopEnd else Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(if (showSmallButton) 80.dp else 280.dp)
+                        ) {
+                            if (isRecording) {
+                                // Pulsing ripples
+                                val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                                val rippleScale by infiniteTransition.animateFloat(
+                                    initialValue = 1f, targetValue = 1.8f,
+                                    animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Restart),
+                                    label = "ripple"
+                                )
+                                val rippleAlpha by infiniteTransition.animateFloat(
+                                    initialValue = 0.6f, targetValue = 0f,
+                                    animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Restart),
+                                    label = "alpha"
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(buttonSize)
+                                        .scale(rippleScale)
+                                        .background(GlowRedDim.copy(alpha = rippleAlpha), CircleShape)
+                                )
+
+                                val animatedAmplitude by animateFloatAsState(
+                                    targetValue = amplitudeScale,
+                                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                                    label = "amp"
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(buttonSize * 1.1f)
+                                        .scale(animatedAmplitude)
+                                        .background(GlowRedRipple, CircleShape)
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(buttonSize)
+                                    .clip(CircleShape)
+                                    .background(Brush.radialGradient(listOf(Color(0xFFFF5E62), GlowRed)))
+                                    .clickable {
+                                        val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+                                        if (hasPermission) viewModel.toggleRecording()
+                                        else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
+                                    contentDescription = "Record",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(if (showSmallButton) 24.dp else 48.dp)
+                                )
+                            }
+                        }
+
+                        if (!showSmallButton && !isRecording) {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Text("TAP TO START", color = TextMuted, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                        } else if (isRecording) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(elapsedTime, color = GlowRed, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
                     }
                 }
             }
